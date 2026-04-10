@@ -89,11 +89,4 @@ impl<const SIZE: usize> std::io::Read for RingBuf<u8, SIZE> {
 
         Ok(len)
     }
-
-    fn read_exact(&mut self, buf: &mut [u8]) -> std::io::Result<()> {
-        match self.read(buf) {
-            Ok(_) => Ok(()),
-            Err(_) => Err(ErrorKind::UnexpectedEof.into()),
-        }
-    }
 }
