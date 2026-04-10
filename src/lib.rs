@@ -75,21 +75,19 @@ impl<const SIZE: usize> std::io::Write for RingBuf<u8, SIZE> {
 
 impl<const SIZE: usize> std::io::Read for RingBuf<u8, SIZE> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        if SIZE - self.available_space() < buf.len() {
-            return Err(ErrorKind::UnexpectedEof.into());
-        }
+        let len = (SIZE - self.available_space()).min(buf.len());
 
         let first_chunk_len = SIZE - self.read_idx;
-        if first_chunk_len >= buf.len() {
-            buf.copy_from_slice(&self.data[self.read_idx..(self.read_idx + buf.len())]);
+        if first_chunk_len >= len {
+            buf[0..len].copy_from_slice(&self.data[self.read_idx..(self.read_idx + len)]);
         } else {
             buf[..first_chunk_len].copy_from_slice(&self.data[self.read_idx..]);
             buf[first_chunk_len..].copy_from_slice(&self.data[..self.write_idx]);
         }
 
-        self.read_idx = (self.read_idx + buf.len()) % SIZE;
+        self.read_idx = (self.read_idx + len) % SIZE;
 
-        Ok(buf.len())
+        Ok(len)
     }
 
     fn read_exact(&mut self, buf: &mut [u8]) -> std::io::Result<()> {
