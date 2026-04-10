@@ -82,7 +82,7 @@ impl<const SIZE: usize> std::io::Read for RingBuf<u8, SIZE> {
             buf[0..len].copy_from_slice(&self.data[self.read_idx..(self.read_idx + len)]);
         } else {
             buf[..first_chunk_len].copy_from_slice(&self.data[self.read_idx..]);
-            buf[first_chunk_len..].copy_from_slice(&self.data[..self.write_idx]);
+            buf[first_chunk_len..len].copy_from_slice(&self.data[..self.write_idx - 1]);
         }
 
         self.read_idx = (self.read_idx + len) % SIZE;
