@@ -49,12 +49,12 @@ impl<const SIZE: usize> std::io::Write for RingBuf<u8, SIZE> {
             return Err(ErrorKind::StorageFull.into());
         }
 
-        let tail_chunk_len = SIZE - self.write_idx;
-        if tail_chunk_len >= buf.len() {
+        let first_chunk_len = SIZE - self.write_idx;
+        if first_chunk_len >= buf.len() {
             self.data[self.write_idx..(self.write_idx + buf.len())].copy_from_slice(buf);
         } else {
-            self.data[self.write_idx..].copy_from_slice(&buf[..tail_chunk_len]);
-            self.data[0..(buf.len() - tail_chunk_len)].copy_from_slice(&buf[tail_chunk_len..]);
+            self.data[self.write_idx..].copy_from_slice(&buf[..first_chunk_len]);
+            self.data[0..(buf.len() - first_chunk_len)].copy_from_slice(&buf[first_chunk_len..]);
         }
 
         self.write_idx = (self.write_idx + buf.len()) % SIZE;
@@ -79,12 +79,12 @@ impl<const SIZE: usize> std::io::Read for RingBuf<u8, SIZE> {
             return Err(ErrorKind::UnexpectedEof.into());
         }
 
-        let tail_chunk_len = SIZE - self.read_idx;
-        if tail_chunk_len >= buf.len() {
+        let first_chunk_len = SIZE - self.read_idx;
+        if first_chunk_len >= buf.len() {
             buf.copy_from_slice(&self.data[self.read_idx..(self.read_idx + buf.len())]);
         } else {
-            buf[..tail_chunk_len].copy_from_slice(&self.data[self.read_idx..]);
-            buf[tail_chunk_len..].copy_from_slice(&self.data[..self.write_idx]);
+            buf[..first_chunk_len].copy_from_slice(&self.data[self.read_idx..]);
+            buf[first_chunk_len..].copy_from_slice(&self.data[..self.write_idx]);
         }
 
         self.read_idx = (self.read_idx + buf.len()) % SIZE;
