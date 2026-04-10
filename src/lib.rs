@@ -33,7 +33,7 @@ impl<T, const SIZE: usize> RingBuf<T, SIZE> {
         } else if self.write_idx <= self.read_idx {
             self.read_idx - self.write_idx
         } else {
-            SIZE - self.write_idx + self.read_idx
+            SIZE - (self.write_idx - self.read_idx)
         }
     }
 
