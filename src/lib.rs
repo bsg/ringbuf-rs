@@ -130,4 +130,14 @@ impl<const SIZE: usize> Read for RingBuf<u8, SIZE> {
 
         Ok(len)
     }
+
+    fn read_exact(&mut self, buf: &mut [u8]) -> Result<()> {
+        if self.len() >= buf.len() {
+            // SAFETY: read will never return Err
+            self.read(buf).unwrap();
+            Ok(())
+        } else {
+            Err(ErrorKind::UnexpectedEof.into())
+        }
+    }
 }
