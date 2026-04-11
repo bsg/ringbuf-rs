@@ -25,3 +25,9 @@ fn it_works() {
         assert_matches!(buf.read(&mut bytes), Ok(0));
     });
 }
+//
+// 0 1 2 3 4 5
+// r         w
+// w         r
+//     r w
+//     w r

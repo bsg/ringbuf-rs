@@ -24,16 +24,26 @@ impl<T, const SIZE: usize> RingBuf<T, SIZE> {
     }
 
     pub fn is_full(&self) -> bool {
-        (self.read_idx + 1) % SIZE == self.write_idx
+        (self.write_idx + 1) % SIZE == self.read_idx
     }
 
-    pub fn available_space(&self) -> usize {
+    pub fn free_space(&self) -> usize {
         if self.is_empty() {
-            SIZE - 1
+            SIZE
         } else if self.write_idx < self.read_idx {
             self.read_idx - self.write_idx - 1
         } else {
-            SIZE - (self.write_idx - self.read_idx) - 1
+            SIZE - (self.write_idx - self.read_idx) - 2
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        if self.is_empty() {
+            0
+        } else if self.write_idx < self.read_idx {
+            SIZE - (self.read_idx - self.write_idx)
+        } else {
+            self.write_idx - self.read_idx
         }
     }
 
@@ -68,7 +78,7 @@ impl<const SIZE: usize> RingBuf<u8, SIZE> {
 
 impl<const SIZE: usize> Write for RingBuf<u8, SIZE> {
     fn write(&mut self, buf: &[u8]) -> Result<usize> {
-        let len = self.available_space().min(buf.len());
+        let len = self.free_space().min(buf.len());
 
         let first_chunk_len = SIZE - self.write_idx;
         if first_chunk_len >= len {
@@ -89,7 +99,7 @@ impl<const SIZE: usize> Write for RingBuf<u8, SIZE> {
 
 impl<const SIZE: usize> Read for RingBuf<u8, SIZE> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
-        let len = (SIZE - self.available_space() - 1).min(buf.len());
+        let len = self.len().min(buf.len());
 
         let first_chunk_len = SIZE - self.read_idx;
         if first_chunk_len >= len {
