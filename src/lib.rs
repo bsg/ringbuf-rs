@@ -1,4 +1,4 @@
-use std::io::ErrorKind;
+use std::io::{ErrorKind, Read, Result, Write};
 
 mod tests;
 
@@ -29,11 +29,11 @@ impl<T, const SIZE: usize> RingBuf<T, SIZE> {
 
     pub fn available_space(&self) -> usize {
         if self.is_empty() {
-            SIZE
-        } else if self.write_idx <= self.read_idx {
-            self.read_idx - self.write_idx
+            SIZE - 1
+        } else if self.write_idx < self.read_idx {
+            self.read_idx - self.write_idx - 1
         } else {
-            SIZE - (self.write_idx - self.read_idx)
+            SIZE - (self.write_idx - self.read_idx) - 1
         }
     }
 
@@ -43,38 +43,54 @@ impl<T, const SIZE: usize> RingBuf<T, SIZE> {
     }
 }
 
-impl<const SIZE: usize> std::io::Write for RingBuf<u8, SIZE> {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        if self.available_space() < buf.len() {
+impl<const SIZE: usize> RingBuf<u8, SIZE> {
+    pub fn source_from<R: Read>(&mut self, reader: &mut R) -> Result<usize> {
+        if self.is_full() {
             return Err(ErrorKind::StorageFull.into());
         }
 
-        let first_chunk_len = SIZE - self.write_idx;
-        if first_chunk_len >= buf.len() {
-            self.data[self.write_idx..(self.write_idx + buf.len())].copy_from_slice(buf);
+        let mut nwritten = 0usize;
+        if self.write_idx == self.read_idx {
+            nwritten = reader.read(&mut self.data[..SIZE - 1])?;
+        } else if self.write_idx < self.read_idx {
+            nwritten = reader.read(&mut self.data[self.write_idx..self.read_idx])?;
         } else {
-            self.data[self.write_idx..].copy_from_slice(&buf[..first_chunk_len]);
-            self.data[0..(buf.len() - first_chunk_len)].copy_from_slice(&buf[first_chunk_len..]);
+            nwritten += reader.read(&mut self.data[self.write_idx..])?;
+            nwritten += reader
+                .read(&mut self.data[0..self.read_idx])
+                .unwrap_or_default()
         }
 
-        self.write_idx = (self.write_idx + buf.len()) % SIZE;
-        Ok(buf.len())
-    }
-
-    fn flush(&mut self) -> std::io::Result<()> {
-        Ok(())
-    }
-
-    fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
-        match self.write(buf) {
-            Ok(_) => Ok(()),
-            Err(_) => Err(ErrorKind::StorageFull.into()),
-        }
+        self.write_idx = (self.write_idx + nwritten) % SIZE;
+        Ok(nwritten)
     }
 }
 
-impl<const SIZE: usize> std::io::Read for RingBuf<u8, SIZE> {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+impl<const SIZE: usize> Write for RingBuf<u8, SIZE> {
+    fn write(&mut self, buf: &[u8]) -> Result<usize> {
+        let len = self.available_space().min(buf.len());
+
+        let first_chunk_len = SIZE - self.write_idx;
+        if first_chunk_len >= len {
+            self.data[self.write_idx..(self.write_idx + len)].copy_from_slice(buf);
+        } else {
+            self.data[self.write_idx..].copy_from_slice(&buf[..first_chunk_len]);
+            self.data[0..(len - first_chunk_len)].copy_from_slice(&buf[first_chunk_len..]);
+        }
+
+        self.write_idx = (self.write_idx + len) % SIZE;
+        Ok(len)
+    }
+
+    fn flush(&mut self) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl<const SIZE: usize> Read for RingBuf<u8, SIZE> {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+        dbg!(self.read_idx);
+        dbg!(self.write_idx);
         let len = (SIZE - self.available_space()).min(buf.len());
 
         let first_chunk_len = SIZE - self.read_idx;
