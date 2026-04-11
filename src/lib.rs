@@ -27,7 +27,7 @@ impl<T, const SIZE: usize> RingBuf<T, SIZE> {
         (self.write_idx + 1) % SIZE == self.read_idx
     }
 
-    pub fn free_space(&self) -> usize {
+    pub fn cap(&self) -> usize {
         if self.is_empty() {
             SIZE
         } else if self.write_idx < self.read_idx {
@@ -95,7 +95,7 @@ impl<const SIZE: usize> RingBuf<u8, SIZE> {
 
 impl<const SIZE: usize> Write for RingBuf<u8, SIZE> {
     fn write(&mut self, buf: &[u8]) -> Result<usize> {
-        let len = self.free_space().min(buf.len());
+        let len = self.cap().min(buf.len());
 
         let first_chunk_len = SIZE - self.write_idx;
         if first_chunk_len >= len {
@@ -111,6 +111,15 @@ impl<const SIZE: usize> Write for RingBuf<u8, SIZE> {
 
     fn flush(&mut self) -> Result<()> {
         Ok(())
+    }
+
+    fn write_all(&mut self, buf: &[u8]) -> Result<()> {
+        if self.cap() >= buf.len() {
+            self.write(buf).unwrap();
+            Ok(())
+        } else {
+            Err(ErrorKind::WouldBlock.into())
+        }
     }
 }
 
