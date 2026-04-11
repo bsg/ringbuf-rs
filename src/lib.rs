@@ -89,7 +89,7 @@ impl<const SIZE: usize> Write for RingBuf<u8, SIZE> {
 
 impl<const SIZE: usize> Read for RingBuf<u8, SIZE> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
-        let len = (SIZE - self.available_space()).min(buf.len());
+        let len = (SIZE - self.available_space() - 1).min(buf.len());
 
         let first_chunk_len = SIZE - self.read_idx;
         if first_chunk_len >= len {

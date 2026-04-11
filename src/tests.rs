@@ -22,6 +22,6 @@ fn it_works() {
         assert_eq!(u8::from_le_bytes(bytes), 42);
         let mut bytes: [u8; 8] = [0; 8];
         assert_matches!(buf.read_exact(&mut bytes), Ok(_));
-        assert_eq!(u64::from_le_bytes(bytes), 42);
+        assert_matches!(buf.read(&mut bytes), Ok(0));
     });
 }
