@@ -118,7 +118,7 @@ impl<const SIZE: usize> Write for RingBuf<u8, SIZE> {
             self.write(buf).unwrap();
             Ok(())
         } else {
-            Err(ErrorKind::WouldBlock.into())
+            Err(ErrorKind::StorageFull.into())
         }
     }
 }
