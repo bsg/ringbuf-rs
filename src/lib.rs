@@ -56,23 +56,40 @@ impl<T, const SIZE: usize> RingBuf<T, SIZE> {
 impl<const SIZE: usize> RingBuf<u8, SIZE> {
     pub fn source_from<R: Read>(&mut self, reader: &mut R) -> Result<usize> {
         if self.is_full() {
-            return Err(ErrorKind::StorageFull.into());
+            return Ok(0);
         }
 
-        let mut nwritten = 0usize;
-        if self.write_idx == self.read_idx {
-            nwritten = reader.read(&mut self.data[..SIZE - 1])?;
-        } else if self.write_idx < self.read_idx {
-            nwritten = reader.read(&mut self.data[self.write_idx..self.read_idx])?;
+        let mut n = 0usize;
+        if self.write_idx < self.read_idx {
+            n = reader.read(&mut self.data[self.write_idx..self.read_idx])?;
         } else {
-            nwritten += reader.read(&mut self.data[self.write_idx..])?;
-            nwritten += reader
+            n += reader.read(&mut self.data[self.write_idx..])?;
+            n += reader
                 .read(&mut self.data[0..self.read_idx])
                 .unwrap_or_default()
         }
 
-        self.write_idx = (self.write_idx + nwritten) % SIZE;
-        Ok(nwritten)
+        self.write_idx = (self.write_idx + n) % SIZE;
+        Ok(n)
+    }
+
+    pub fn sink_into<W: Write>(&mut self, writer: &mut W) -> Result<usize> {
+        if self.is_empty() {
+            return Ok(0);
+        }
+
+        let mut n = 0usize;
+        if self.read_idx < self.write_idx {
+            n = writer.write(&self.data[self.read_idx..self.write_idx])?;
+        } else {
+            n += writer.write(&self.data[self.read_idx..])?;
+            n += writer
+                .write(&self.data[0..self.write_idx])
+                .unwrap_or_default()
+        }
+
+        self.read_idx = (self.read_idx + n) % SIZE;
+        Ok(n)
     }
 }
 
