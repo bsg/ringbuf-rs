@@ -51,6 +51,17 @@ impl<T, const SIZE: usize> RingBuf<T, SIZE> {
         self.read_idx = 0;
         self.write_idx = 0;
     }
+
+    pub fn as_mut_slices(&mut self) -> Option<(&mut [T], Option<&mut [T]>)> {
+        if self.is_empty() {
+            None
+        } else if self.read_idx < self.write_idx {
+            Some((&mut self.data[self.read_idx..self.write_idx], None))
+        } else {
+            let (lower, upper) = self.data.split_at_mut(self.read_idx + 1);
+            Some((upper, Some(&mut lower[0..self.write_idx])))
+        }
+    }
 }
 
 impl<const SIZE: usize> RingBuf<u8, SIZE> {
